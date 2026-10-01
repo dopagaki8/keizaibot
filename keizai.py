@@ -9,10 +9,9 @@ from flask import Flask
 # --- Flaskサーバーの設定（Renderのポート監視対策） ---
 app = Flask(__name__)
 
-
-@app.route("/")
+@app.route("/", methods=["GET", "HEAD"])
 def home():
-  return "Bot is running!"
+  return "Bot is running!", 200
 
 
 def run_flask():
