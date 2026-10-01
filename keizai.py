@@ -496,8 +496,16 @@ async def owner_add_money(
 
 
 # --- 7. メイン実行処理（Flask ＆ ボット同時起動） ---
+# --- メイン実行処理（Flask ＆ ボット同時起動の確実な形） ---
 if __name__ == "__main__":
-  # 1. Flaskを裏で起動してRenderのポート要件をクリア
-  keep_alive()
-  # 2. Discordボットを起動
+  # 別スレッドでFlaskを常時バックグラウンド起動
+  flask_thread = threading.Thread(
+      target=lambda: app.run(
+          host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=False
+      )
+  )
+  flask_thread.daemon = True
+  flask_thread.start()
+
+  # メインスレッドでDiscordボットを起動
   bot.run(os.getenv("DISCORD_TOKEN"))
