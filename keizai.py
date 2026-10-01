@@ -303,4 +303,4 @@ async def owner_add_money(interaction: discord.Interaction, member: discord.Memb
 
 
 # ボットの起動
-bot.run("MTU1NTEzNTAwNDA1OTYzNTczMg.G2mC9V.9fTBypiRcdBmkpOj90j_M7QJ1eP68BHFjmHSr4")
+bot.run("os.getenv("DISCORD_TOKEN")")
