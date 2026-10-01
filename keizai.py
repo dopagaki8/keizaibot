@@ -302,6 +302,8 @@ async def owner_add_money(interaction: discord.Interaction, member: discord.Memb
     data["money"] += amount
     await interaction.response.send_message(f"🛠️ [オーナー特権] {member.mention} に **{amount:,}円** を無限発行しました！", ephemeral=True)
 
-
-# ボットの起動
-bot.run(os.getenv("DISCORD_TOKEN"))
+if __name__ == "__main__":
+  # 1. Flaskを裏で起動してRenderのポート監視をクリア
+  keep_alive()
+  # 2. Discordボットを起動
+  bot.run(os.getenv("DISCORD_TOKEN"))
