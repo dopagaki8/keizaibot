@@ -16,14 +16,8 @@ def home():
 
 
 def run_flask():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=False)
-
-
-def keep_alive():
-    t = threading.Thread(target=run_flask)
-    t.daemon = True
-    t.start()
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
 
 # --- Discordボットの設定 ---
@@ -130,9 +124,7 @@ async def on_ready():
     print(f"ログインしました: {bot.user.name}")
 
 
-# --- 3. 経済スラッシュコマンド（すべて本人のみ表示） ---
-
-
+# --- 3. 経済スラッシュコマンド ---
 @bot.tree.command(
     name="wallet", description="このサーバーでの所持金や銀行残高を確認します"
 )
@@ -267,8 +259,6 @@ async def stock(interaction: discord.Interaction, amount: int):
 
 
 # --- 4. 請求書コマンド ---
-
-
 @bot.tree.command(name="invoice", description="指定したユーザーに請求書を送ります")
 @app_commands.describe(member="請求する相手", amount="請求する金額")
 async def invoice(
@@ -303,9 +293,7 @@ async def invoice(
     )
 
 
-# --- 5. 一般管理者用コマンド（お金の操作のみ） ---
-
-
+# --- 5. 管理者用コマンド ---
 @bot.tree.command(
     name="addmoney", description="【管理者用】指定したユーザーにお金を付与します"
 )
@@ -349,9 +337,7 @@ async def takemoney(
     )
 
 
-# --- 6. ボット主（オーナー）専用コマンド（ロール管理 ＆ お金無限発行） ---
-
-
+# --- 6. オーナー専用コマンド ---
 @bot.tree.command(
     name="role_create", description="【ボット主専用】新しいロールを作成します"
 )
@@ -437,8 +423,7 @@ async def role_give(
         )
     except Exception as e:
         await interaction.response.send_message(
-            "ロールの付与に失敗しました（ボットのロール位置が対象ロールより下にある可能性があります）。",
-            ephemeral=True,
+            "ロールの付与に失敗しました。", ephemeral=True
         )
 
 
@@ -479,8 +464,7 @@ async def owner_add_money(
 ):
     if not await is_owner(interaction):
         await interaction.response.send_message(
-            "このコマンドはボットの作成者（オーナー）しか実行できません！",
-            ephemeral=True,
+            "This command is restricted.", ephemeral=True
         )
         return
 
@@ -492,7 +476,10 @@ async def owner_add_money(
     )
 
 
-# --- 7. メイン実行処理（Flask ＆ ボット同時起動） ---
+# --- 7. メイン実行処理（確実な同時起動） ---
 if __name__ == "__main__":
-    keep_alive()
+    t = threading.Thread(target=run_flask)
+    t.daemon = True
+    t.start()
+
     bot.run(os.getenv("DISCORD_TOKEN"))
