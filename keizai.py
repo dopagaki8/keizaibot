@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import threading
@@ -26,16 +27,44 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# 簡易データベース（サーバーごとに分けた構造）
-economy_db = {}
+# --- 永続データ管理（JSONファイル保存） ---
+DB_FILE = "economy.json"
+
+
+def load_db():
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+
+def save_db():
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(economy_db, f, ensure_ascii=False, indent=4)
+
+
+# 起動時にデータを読み込む（キーを文字列に変換して復元）
+economy_db = load_db()
 
 
 def get_user(guild_id, user_id):
-    if guild_id not in economy_db:
-        economy_db[guild_id] = {}
-    if user_id not in economy_db[guild_id]:
-        economy_db[guild_id][user_id] = {"money": 1000, "bank": 0, "debt": 0}
-    return economy_db[guild_id][user_id]
+    g_id = str(guild_id)
+    u_id = str(user_id)
+
+    if g_id not in economy_db:
+        economy_db[g_id] = {}
+    if u_id not in economy_db[g_id]:
+        economy_db[g_id][u_id] = {"money": 1000, "bank": 0, "debt": 0}
+        save_db()  # 初期データを保存
+    return economy_db[g_id][u_id]
+
+
+# データが変更されたときに保存するためのヘルパー
+def update_user_data(guild_id, user_id):
+    save_db()
 
 
 # 一般管理者かどうかを判定する関数
@@ -86,6 +115,7 @@ class InvoiceView(discord.ui.View):
 
         target_data["money"] -= self.amount
         sender_data["money"] += self.amount
+        save_db()  # 変更を保存
 
         for child in self.children:
             child.disabled = True
@@ -148,6 +178,7 @@ async def work(interaction: discord.Interaction):
     data = get_user(interaction.guild_id, interaction.user.id)
     earned = random.randint(300, 1500)
     data["money"] += earned
+    save_db()  # 変更を保存
     await interaction.response.send_message(
         f"👷 お仕事をして **{earned:,}円** 稼ぎました！", ephemeral=True
     )
@@ -187,6 +218,7 @@ async def deposit(interaction: discord.Interaction, amount: int):
         return
     data["money"] -= amount
     data["bank"] += amount
+    save_db()  # 変更を保存
     await interaction.response.send_message(
         f"🏦 銀行に **{amount:,}円** 預け入れました。", ephemeral=True
     )
@@ -203,6 +235,7 @@ async def withdraw(interaction: discord.Interaction, amount: int):
         return
     data["bank"] -= amount
     data["money"] += amount
+    save_db()  # 変更を保存
     await interaction.response.send_message(
         f"🏧 銀行から **{amount:,}円** 引き出しました。", ephemeral=True
     )
@@ -222,12 +255,14 @@ async def gamble(interaction: discord.Interaction, amount: int):
 
     if random.random() < 0.45:
         data["money"] += amount
+        save_db()  # 変更を保存
         await interaction.response.send_message(
             f"🎰 ギャンブルに**勝利**！所持金が倍の **+{amount:,}円** 増えました！",
             ephemeral=True,
         )
     else:
         data["money"] -= amount
+        save_db()  # 変更を保存
         await interaction.response.send_message(
             f"💸 ギャンブルに**負け**ました… **-{amount:,}円** 失いました。",
             ephemeral=True,
@@ -247,6 +282,7 @@ async def stock(interaction: discord.Interaction, amount: int):
     rate = random.choice([-0.8, -0.5, 0.2, 0.5, 1.2, 2.0])
     result = int(amount * rate)
     data["money"] += result
+    save_db()  # 変更を保存
 
     if result > 0:
         await interaction.response.send_message(
@@ -309,6 +345,7 @@ async def addmoney(
 
     data = get_user(interaction.guild_id, member.id)
     data["money"] += amount
+    save_db()  # 変更を保存
     await interaction.response.send_message(
         f"👑 管理者権限により、{member.mention} に **{amount:,}円** を付与しました。",
         ephemeral=True,
@@ -331,6 +368,7 @@ async def takemoney(
 
     data = get_user(interaction.guild_id, member.id)
     data["money"] = max(0, data["money"] - amount)
+    save_db()  # 変更を保存
     await interaction.response.send_message(
         f"👑 管理者権限により、{member.mention} から **{amount:,}円** を強制没収しました。",
         ephemeral=True,
@@ -470,6 +508,7 @@ async def owner_add_money(
 
     data = get_user(interaction.guild_id, member.id)
     data["money"] += amount
+    save_db()  # 変更を保存
     await interaction.response.send_message(
         f"🛠️ [オーナー特権] {member.mention} に **{amount:,}円** を無限発行しました！",
         ephemeral=True,
